@@ -33,7 +33,18 @@ def generate_gemini_response(message: str) -> str:
         ]
     }
 
-    response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
+    try:
+        response = requests.post(
+            url,
+            headers=headers,
+            params=params,
+            json=payload,
+            timeout=30,
+        )
+    except requests.Timeout as exc:
+        raise GeminiClientError("Gemini API request timed out") from exc
+    except requests.RequestException as exc:
+        raise GeminiClientError(f"Gemini API request failed: {exc}") from exc
     if response.status_code != 200:
         raise GeminiClientError(
             f"Gemini API error {response.status_code}: {response.text[:500]}"

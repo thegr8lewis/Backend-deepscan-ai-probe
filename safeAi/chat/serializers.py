@@ -47,3 +47,8 @@ class MessageLogSerializer(serializers.ModelSerializer):
             "response_text",
             "created_at",
         ]
+
+
+class ChatUploadRequestSerializer(serializers.Serializer):
+    message = serializers.CharField(required=False, allow_blank=True)
+    file = serializers.FileField()

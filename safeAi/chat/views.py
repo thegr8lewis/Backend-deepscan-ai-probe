@@ -4,7 +4,8 @@ import uuid
 import requests
 from django.http import JsonResponse
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import FormParser, MultiPartParser
 
 from .gemini_service import GeminiClientError, generate_gemini_response
 from .models import APIUser, ChatUser, MessageLog, TelegramUser
@@ -13,10 +14,36 @@ from .serializers import (
     APIMessageRequestSerializer,
     APIUserSerializer,
     ChatRequestSerializer,
+    ChatUploadRequestSerializer,
     ChatUserSerializer,
     MessageLogSerializer,
     TelegramUserSerializer,
 )
+
+
+def _extract_text_from_uploaded_file(uploaded_file):
+    name = (uploaded_file.name or "").lower()
+    if name.endswith(".pdf"):
+        from PyPDF2 import PdfReader
+
+        reader = PdfReader(uploaded_file)
+        parts = []
+        for page in reader.pages:
+            text = page.extract_text() or ""
+            parts.append(text)
+        return "\n".join(parts)
+    if name.endswith(".docx") or name.endswith(".doc"):
+        from docx import Document
+
+        document = Document(uploaded_file)
+        parts = [p.text for p in document.paragraphs if p.text]
+        return "\n".join(parts)
+    # Fallback: treat as text file
+    data = uploaded_file.read()
+    try:
+        return data.decode("utf-8", errors="ignore")
+    except AttributeError:
+        return str(data)
 
 
 @api_view(["POST"])
@@ -50,6 +77,64 @@ def chat_view(request):
         source="chat",
         chat_user=chat_user,
         request_text=message,
+        response_text=response_text,
+    )
+
+    return JsonResponse({"response": response_text})
+
+
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser])
+def chat_upload_view(request):
+    serializer = ChatUploadRequestSerializer(data=request.data)
+    if not serializer.is_valid():
+        return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if not request.session.session_key:
+        request.session.create()
+    session_id = request.session.session_key
+
+    chat_user, _ = ChatUser.objects.get_or_create(session_id=session_id)
+
+    message = serializer.validated_data.get("message") or ""
+    uploaded_file = request.FILES.get("file")
+    if uploaded_file is None:
+        return JsonResponse({"file": ["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        extracted_text = _extract_text_from_uploaded_file(uploaded_file)
+    except Exception as exc:  # noqa: BLE001
+        MessageLog.objects.create(
+            source="chat",
+            chat_user=chat_user,
+            request_text=message or uploaded_file.name,
+            response_text=f"Failed to extract file text: {exc}",
+        )
+        return JsonResponse(
+            {"detail": "Failed to read uploaded file."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    combined_text = (message + "\n\n" + extracted_text).strip() if message else extracted_text
+
+    try:
+        response_text = generate_gemini_response(combined_text)
+    except GeminiClientError as exc:
+        MessageLog.objects.create(
+            source="chat",
+            chat_user=chat_user,
+            request_text=combined_text,
+            response_text=str(exc),
+        )
+        return JsonResponse(
+            {"detail": str(exc)},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    MessageLog.objects.create(
+        source="chat",
+        chat_user=chat_user,
+        request_text=combined_text,
         response_text=response_text,
     )
 
