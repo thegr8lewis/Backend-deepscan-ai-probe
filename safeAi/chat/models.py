@@ -23,6 +23,7 @@ class MessageLog(models.Model):
         ("chat", "Chat"),
         ("telegram", "Telegram"),
         ("api", "API"),
+        ("ukweli", "Ukweli"),
     ]
 
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES)

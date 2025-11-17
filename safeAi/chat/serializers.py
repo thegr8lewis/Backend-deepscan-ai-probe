@@ -52,3 +52,8 @@ class MessageLogSerializer(serializers.ModelSerializer):
 class ChatUploadRequestSerializer(serializers.Serializer):
     message = serializers.CharField(required=False, allow_blank=True)
     file = serializers.FileField()
+
+
+class UkweliVerifyRequestSerializer(serializers.Serializer):
+    api_key = serializers.CharField()
+    claim = serializers.CharField()

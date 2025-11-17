@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 
@@ -9,6 +10,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 
 from .gemini_service import GeminiClientError, generate_gemini_response
 from .models import APIUser, ChatUser, MessageLog, TelegramUser
+from .ukweli_service import UkweliClientError, verify_ukweli_claim
 from .serializers import (
     APIKeyRequestSerializer,
     APIMessageRequestSerializer,
@@ -17,6 +19,7 @@ from .serializers import (
     ChatUploadRequestSerializer,
     ChatUserSerializer,
     MessageLogSerializer,
+    UkweliVerifyRequestSerializer,
     TelegramUserSerializer,
 )
 
@@ -268,3 +271,58 @@ def all_data_view(request):
         },
         safe=False,
     )
+
+
+@api_view(["DELETE"])
+def delete_message_log_view(request, message_id):
+    try:
+        log = MessageLog.objects.get(id=message_id)
+    except MessageLog.DoesNotExist:
+        return JsonResponse({"detail": "MessageLog not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    log.delete()
+    return JsonResponse({}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["POST"])
+def ukweli_verify_view(request):
+    serializer = UkweliVerifyRequestSerializer(data=request.data)
+    if not serializer.is_valid():
+        return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    api_key = serializer.validated_data["api_key"]
+    claim = serializer.validated_data["claim"]
+
+    try:
+        api_user = APIUser.objects.get(api_key=api_key)
+    except APIUser.DoesNotExist:
+        MessageLog.objects.create(
+            source="ukweli",
+            api_user=None,
+            request_text=claim,
+            response_text="Invalid API key",
+        )
+        return JsonResponse(
+            {"detail": "Invalid API key"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    try:
+        result = verify_ukweli_claim(claim)
+    except UkweliClientError as exc:
+        MessageLog.objects.create(
+            source="ukweli",
+            api_user=api_user,
+            request_text=claim,
+            response_text=str(exc),
+        )
+        return JsonResponse({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+    MessageLog.objects.create(
+        source="ukweli",
+        api_user=api_user,
+        request_text=claim,
+        response_text=json.dumps(result),
+    )
+
+    return JsonResponse(result)
