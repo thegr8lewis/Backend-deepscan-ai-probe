@@ -226,21 +226,45 @@ def telegram_webhook_view(request):
         telegram_user.save(update_fields=["username"])
 
     try:
-        response_text = generate_gemini_response(text)
-    except GeminiClientError as exc:
-        response_text = "Sorry, I had an issue processing your request."
+        result = verify_ukweli_claim(text)
+
+        verdict = result.get("final_verdict", "UNKNOWN")
+        score = result.get("explainable_confidence_score")
+        snippet = result.get("top_evidence_snippet") or {}
+
+        evidence_verdict = snippet.get("verdict")
+        evidence_text = snippet.get("evidence")
+        evidence_source = snippet.get("source")
+
+        parts = [f"Verdict: {verdict}"]
+        if isinstance(score, (int, float)):
+            parts.append(f"Confidence: {score:.2f}")
+
+        if evidence_verdict or evidence_text or evidence_source:
+            parts.append("")
+            parts.append("Top evidence:")
+            if evidence_verdict:
+                parts.append(f"- Stance: {evidence_verdict}")
+            if evidence_text:
+                parts.append(f"- Evidence: {evidence_text}")
+            if evidence_source:
+                parts.append(f"- Source: {evidence_source}")
+
+        response_text = "\n".join(parts)
+
         MessageLog.objects.create(
-            source="telegram",
+            source="ukweli",
+            telegram_user=telegram_user,
+            request_text=text,
+            response_text=json.dumps(result),
+        )
+    except UkweliClientError as exc:
+        response_text = "Sorry, I had an issue verifying that claim. Please try again later."
+        MessageLog.objects.create(
+            source="ukweli",
             telegram_user=telegram_user,
             request_text=text,
             response_text=str(exc),
-        )
-    else:
-        MessageLog.objects.create(
-            source="telegram",
-            telegram_user=telegram_user,
-            request_text=text,
-            response_text=response_text,
         )
 
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
