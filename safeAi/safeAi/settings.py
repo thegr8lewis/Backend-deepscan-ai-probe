@@ -261,6 +261,18 @@ WSGI_APPLICATION = "safeAi.wsgi.application"
 # ================================
 # DATABASE (Render → PostgreSQL)
 # ================================
+
+
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": os.environ.get("DB_NAME", ""),
+#         "USER": os.environ.get("DB_USER", "postgres"),
+#         "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+#         "HOST": os.environ.get("DB_HOST", "localhost"),
+#         "PORT": os.environ.get("DB_PORT", "5432"),
+#     }
+# }
 DATABASES = {
     "default": dj_database_url.config(
         default=os.environ.get("DATABASE_URL")
@@ -323,6 +335,7 @@ SPECTACULAR_SETTINGS = {
 # CSRF
 # ================================
 CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
     "https://ukweli-lens-frontend.onrender.com",
 ]
 
@@ -331,6 +344,7 @@ cors_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") \
     if os.environ.get("CORS_ALLOWED_ORIGINS") else []
 
 CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
     "https://ukweli-lens-frontend.onrender.com",
     *[origin for origin in cors_origins if origin],
 ]
