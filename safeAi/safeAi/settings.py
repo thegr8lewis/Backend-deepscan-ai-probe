@@ -325,3 +325,12 @@ SPECTACULAR_SETTINGS = {
 CSRF_TRUSTED_ORIGINS = [
     "https://ukweli-lens-frontend.onrender.com",
 ]
+
+
+cors_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") \
+    if os.environ.get("CORS_ALLOWED_ORIGINS") else []
+
+CORS_ALLOWED_ORIGINS = [
+    "https://ukweli-lens-frontend.onrender.com",
+    *[origin for origin in cors_origins if origin],
+]
