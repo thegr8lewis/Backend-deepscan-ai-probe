@@ -297,8 +297,11 @@ def all_data_view(request):
     )
 
 
-@api_view(["GET"])
 def health_check_view(request):
+    """Simple health endpoint for uptime checks.
+
+    Accepts GET and HEAD (handled automatically by Django when GET is defined).
+    """
     return JsonResponse({"status": "ok"})
 
 
