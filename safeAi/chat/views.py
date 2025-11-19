@@ -297,6 +297,11 @@ def all_data_view(request):
     )
 
 
+@api_view(["GET"])
+def health_check_view(request):
+    return JsonResponse({"status": "ok"})
+
+
 @api_view(["DELETE"])
 def delete_message_log_view(request, message_id):
     try:
