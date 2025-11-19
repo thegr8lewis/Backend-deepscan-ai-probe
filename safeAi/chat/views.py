@@ -3,7 +3,7 @@ import os
 import uuid
 
 import requests
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -200,7 +200,11 @@ def api_message_view(request):
         response_text=response_text,
     )
 
-    return JsonResponse({"response": response_text, "api_user_id": api_user.id})
+    payload = {"response": response_text, "api_user_id": api_user.id}
+    return HttpResponse(
+        json.dumps(payload),
+        content_type="application/json",
+    )
 
 
 @api_view(["POST"])
