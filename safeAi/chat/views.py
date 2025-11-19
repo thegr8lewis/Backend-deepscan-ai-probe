@@ -213,8 +213,10 @@ def telegram_webhook_view(request):
     telegram_id = chat.get("id")
     username = chat.get("username") or chat.get("first_name")
 
+    # For non-text or unsupported updates (no chat id or no text),
+    # just acknowledge with 200 so Telegram doesn't repeatedly retry.
     if telegram_id is None or text is None:
-        return JsonResponse({"detail": "Invalid Telegram payload"}, status=400)
+        return JsonResponse({"ok": True})
 
     telegram_user, _ = TelegramUser.objects.get_or_create(
         telegram_id=telegram_id,
