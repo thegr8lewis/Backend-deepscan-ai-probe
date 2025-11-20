@@ -262,8 +262,7 @@ WSGI_APPLICATION = "safeAi.wsgi.application"
 # DATABASE (Render → PostgreSQL)
 # ================================
 
-<<<<<<< HEAD
-=======
+
 
 # DATABASES = {
 #     "default": {
@@ -275,7 +274,8 @@ WSGI_APPLICATION = "safeAi.wsgi.application"
 #         "PORT": os.environ.get("DB_PORT", "5432"),
 #     }
 # }
->>>>>>> 29c107040085c1c43c19a9698a8a5a8fb453c9b4
+
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
